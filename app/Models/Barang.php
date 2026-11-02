@@ -8,6 +8,16 @@ class Barang extends Model
     protected $table = 'barang';
     protected $primaryKey = 'idbarang';
     public $timestamps = false;
+    protected $fillable = [
+        'jenis', 
+        'nama', 
+        'idsatuan', 
+        'status', 
+        'harga', 
+        'deskripsi', 
+        'ukuran', 
+        'gambar'
+    ];
 
     // Relasi: Barang memiliki satu Satuan
     public function satuan()

@@ -1,62 +1,80 @@
 @extends('layouts.app')
 
-@section('title', 'Kelola Role - Store Pakaian')
+@section('title', 'Kelola Role - Felyneon Store')
 
 @section('content')
-<div class="row mb-4">
-    <div class="col-md-12">
-        <h3 class="fw-bold text-dark"><i class="fa-solid fa-user-gear text-primary me-2"></i> Manajemen Role Pengguna</h3>
-        <p class="text-muted small">Tambah, ubah, atau hapus peran hak akses pegawai store pakaian.</p>
-    </div>
-</div>
-
-<!-- Form Tambah Role -->
-<div class="card card-custom p-4 bg-white mb-4">
-    <h5 class="fw-semibold mb-3 text-secondary">Tambah Role Baru</h5>
-    <form action="/role" method="POST">
-        @csrf
-        <div class="input-group">
-            <input type="text" name="nama_role" class="form-control" placeholder="Contoh: Kasir Utama, Kepala Gudang..." required>
-            <button type="submit" class="btn btn-primary px-4 fw-bold"><i class="fa-solid fa-plus me-1"></i> Simpan Role</button>
+<div class="container mt-4">
+    
+    <!-- NOTIFIKASI BERHASIL (WARNA HIJAU) -->
+    @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+            <i class="fa-solid fa-circle-check me-2"></i> {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
-    </form>
-</div>
+    @endif
 
-<!-- Tabel Daftar Role -->
-<div class="card card-custom p-3 bg-white">
-    <div class="card-body">
-        <table class="table table-striped align-middle">
-            <thead class="table-dark">
-                <tr>
-                    <th class="py-3">ID Role</th>
-                    <th class="py-3">Nama Role / Hak Akses</th>
-                    <th class="py-3 text-center">Aksi Manajemen</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($roles as $role)
-                <tr>
-                    <td class="fw-bold text-muted">#{{ $role->idrole }}</td>
-                    <td class="fw-semibold text-dark">{{ $role->nama_role }}</td>
-                    <td class="text-center">
-                        <!-- Form Update Sederhana / Inline -->
-                        <form action="/role/{{ $role->idrole }}" method="POST" class="d-inline">
-                            @csrf
-                            @method('PUT')
-                            <input type="text" name="nama_role" value="{{ $role->nama_role }}" class="form-control form-control-sm d-inline w-50 me-1" required>
-                            <button type="submit" class="btn btn-warning btn-sm text-dark px-2"><i class="fa-solid fa-pen"></i> Update</button>
-                        </form>
-                        <!-- Form Delete -->
-                        <form action="/role/{{ $role->idrole }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah yakin ingin menghapus role ini?')">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="btn btn-danger btn-sm px-2"><i class="fa-solid fa-trash"></i> Hapus</button>
-                        </form>
-                    </td>
-                </tr>
-                @endforeach
-            </tbody>
-        </table>
+    <!-- Card Tambah Role -->
+    <div class="card shadow p-4 border-0 rounded-4 mb-4">
+        <h4 class="fw-bold mb-1 text-dark"><i class="fa-solid fa-user-shield me-2"></i> Manajemen Role Pengguna</h4>
+        <p class="text-muted small mb-4">Tambah, ubah, atau hapus peran hak akses pegawai store pakaian.</p>
+
+        <form action="/role" method="POST" class="row g-3 align-items-center">
+            @csrf
+            <div class="col-md-10">
+                <label class="form-label small fw-bold text-secondary">Tambah Role Baru</label>
+                <input type="text" name="nama_role" class="form-control" placeholder="Contoh: Kasir Utama, Kepala Gudang..." required>
+            </div>
+            <div class="col-md-2 d-grid">
+                <label class="form-label small fw-bold text-transparent">&nbsp;</label>
+                <button type="submit" class="btn btn-primary fw-semibold shadow-sm">
+                    <i class="fa-solid fa-plus me-1"></i> Simpan Role
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Card Tabel Data Role -->
+    <div class="card shadow p-4 border-0 rounded-4">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th style="width: 15%;">ID Role</th>
+                        <th style="width: 85%;">Nama Role & Aksi Manajemen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($roles as $r)
+                    <tr>
+                        <td class="fw-bold text-secondary">#{{ $r->idrole }}</td>
+                        <td>
+                            <div class="d-flex align-items-center gap-3">
+                                <!-- Form untuk Edit Nama Role -->
+                                <form action="/role/{{ $r->idrole }}" method="POST" class="d-flex gap-2 flex-grow-1 align-items-center">
+                                    @csrf
+                                    @method('PUT')
+                                    <input type="text" name="nama_role" value="{{ $r->nama_role }}" class="form-control form-control-sm" required>
+                                    <!-- Tombol diubah menjadi Edit -->
+                                    <button type="submit" class="btn btn-warning btn-sm fw-semibold text-dark text-nowrap shadow-sm">
+                                        <i class="fa-solid fa-pen-to-square me-1"></i> Edit
+                                    </button>
+                                </form>
+
+                                <!-- Form untuk Hapus Role -->
+                                <form action="/role/{{ $r->idrole }}" method="POST" class="d-inline" onsubmit="return confirm('Yakin ingin menghapus role ini?')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-danger btn-sm fw-semibold text-nowrap shadow-sm">
+                                        <i class="fa-solid fa-trash me-1"></i> Hapus
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 @endsection

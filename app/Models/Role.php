@@ -7,9 +7,10 @@ class Role extends Model
 {
     protected $table = 'role';
     protected $primaryKey = 'idrole';
-    public $timestamps = false; // Karena tidak ada kolom created_at/updated_at di tabel role
+    public $timestamps = false;
 
-    // Relasi: Satu Role bisa dimiliki oleh banyak User
+    protected $fillable = ['nama_role'];
+
     public function users()
     {
         return $this->hasMany(User::class, 'idrole', 'idrole');

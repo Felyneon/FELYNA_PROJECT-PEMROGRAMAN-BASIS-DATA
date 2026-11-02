@@ -5,9 +5,17 @@ use Illuminate\Database\Eloquent\Model;
 
 class DetailPenjualan extends Model
 {
-    protected $table = 'detail_penjualan';
+        protected $table = 'detail_penjualan';
     protected $primaryKey = 'iddetail_penjualan';
     public $timestamps = false;
+
+    protected $fillable = [
+        'harga_satuan',
+        'jumlah',
+        'subtotal',
+        'penjualan_idpenjualan',
+        'idbarang'
+    ];
 
     // Relasi: Detail penjualan merujuk ke satu Header Penjualan
     public function penjualan()

@@ -5,6 +5,12 @@
     <title>Katalog Barang Store Pakaian</title>
 </head>
 <body>
+    @if(session('success'))
+    <div class="alert alert-success alert-dismissible fade show shadow-sm mb-3" role="alert">
+        <i class="fa-solid fa-circle-check me-2"></i> {{ session('success') }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+@endif
     <h1>Daftar Katalog Pakaian</h1>
 
     <table border="1" cellpadding="10" cellspacing="0">
@@ -23,6 +29,8 @@
                 <td>{{ $item->jenis }}</td>
                 <td>Rp {{ number_format($item->harga, 0, ',', '.') }}</td>
                 <td>{{ $item->satuan->nama_satuan }}</td> 
+                <td>{{ $b->stok_terkini }}</td>
+                <td>{{ $b->status == 1 ? 'Aktif' : 'Nonaktif' }}</td>
             </tr>
             @endforeach
         </tbody>
