@@ -9,6 +9,9 @@ class Penjualan extends Model
     protected $primaryKey = 'idpenjualan';
     public $timestamps = false; // Atur true jika ingin memanfaatkan created_at otomatis Laravel
 
+    protected $fillable = [
+    'subtotal_nilai', 'ppn', 'total_nilai', 'iduser', 'idmargin_penjualan',
+];
     // Relasi: Transaksi dicatat oleh satu User
     public function user()
     {
@@ -20,4 +23,8 @@ class Penjualan extends Model
     {
         return $this->hasMany(DetailPenjualan::class, 'penjualan_idpenjualan', 'idpenjualan');
     }
+    public function marginPenjualan()
+{
+    return $this->belongsTo(MarginPenjualan::class, 'idmargin_penjualan', 'idmargin_penjualan');
+}
 }

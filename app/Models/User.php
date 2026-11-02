@@ -9,11 +9,17 @@ class User extends Model
     protected $primaryKey = 'iduser';
     public $timestamps = false;
 
-    protected $fillable = [
-        'username',
-        'password',
-        'idrole',
+   
+        protected $fillable = [
+    'username',
+    'password',
+    'idrole',
+    'nama_lengkap',
+    'no_hape',
+    'email',
+    'help_center',
     ];
+    
 
     // Relasi: User ini memiliki satu Role tertentu
     public function role()

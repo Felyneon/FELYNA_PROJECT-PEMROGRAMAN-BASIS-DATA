@@ -1,3 +1,4 @@
+
 <p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
 <p align="center">
@@ -56,3 +57,28 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+# Project Pemrograman Basis Data
+
+Sistem Informasi berbasis web yang dikembangkan menggunakan PHP dan MySQL untuk memenuhi tugas mata kuliah **Pemrograman Basis Data**.
+
+---
+
+### Identitas
+
+* **Nama:** Felyna Nadia Suryaningsih
+* **NIM:** 434251036
+* **Kelas:** TI-B2
+* **Program Studi:** D4 Teknik Informatika
+* **Fakultas:** Fakultas Vokasi, Universitas Airlangga
+
+
+### Tools
+
+- **Bahasa Pemrograman:** PHP
+- **Database:** MySQL
+- **Frontend Framework:** Bootstrap 5
+- **Lingkungan Pengembangan (Environment):** Laragon & Visual Studio Code
+
+---
+
