@@ -9,12 +9,13 @@ class UjiSpFunctionController extends Controller
 {
     public function index(Request $request)
     {
-        // Parameter dari form (punya nilai default)
         $iduser   = (int) $request->query('iduser', 2);
         $idvendor = (int) $request->query('idvendor', 1);
         $idbarang = (int) $request->query('idbarang', 3);
         $idmargin = (int) $request->query('idmargin', 1);
-        $batas    = (int) $request->query('batas', 10);
+        $jumlah   = max(1, (int) $request->query('jumlah', 3));
+
+        $db = DB::selectOne('SELECT DATABASE() AS nama')->nama;
 
         $hasil = [
 
@@ -25,14 +26,47 @@ class UjiSpFunctionController extends Controller
                 'info'  => 'Harga jual = harga dasar + margin (%) yang dipilih.',
                 'sql'   => "SELECT fn_hitung_harga_jual($idbarang, $idmargin)",
                 'rows'  => DB::select(
-                    'SELECT b.nama AS nama_barang,
-                            b.harga AS harga_dasar,
-                            m.persen AS margin_persen,
+                    'SELECT b.nama AS nama_barang, b.harga AS harga_dasar, m.persen AS margin_persen,
                             fn_hitung_harga_jual(b.idbarang, m.idmargin_penjualan) AS harga_jual
                      FROM barang b
                      JOIN margin_penjualan m ON m.idmargin_penjualan = ?
                      WHERE b.idbarang = ?',
                     [$idmargin, $idbarang]
+                ),
+            ],
+            [
+                'jenis' => 'FUNCTION',
+                'nama'  => 'fn_hitung_subtotal',
+                'info'  => 'Subtotal baris detail = harga satuan x jumlah (dipakai trigger detail pengadaan, penerimaan, penjualan).',
+                'sql'   => "SELECT fn_hitung_subtotal(harga, $jumlah) FROM barang",
+                'rows'  => DB::select(
+                    'SELECT nama AS nama_barang, harga AS harga_dasar, ? AS jumlah,
+                            fn_hitung_subtotal(harga, ?) AS subtotal
+                     FROM barang WHERE idbarang = ?',
+                    [$jumlah, $jumlah, $idbarang]
+                ),
+            ],
+            [
+                'jenis' => 'FUNCTION',
+                'nama'  => 'fn_hitung_ppn',
+                'info'  => 'PPN 11% dari subtotal (dipakai SP sp_update_total_pengadaan dan sp_update_total_penjualan).',
+                'sql'   => "SELECT fn_hitung_ppn(fn_hitung_subtotal(harga, $jumlah)) FROM barang",
+                'rows'  => DB::select(
+                    'SELECT nama AS nama_barang,
+                            fn_hitung_subtotal(harga, ?) AS subtotal,
+                            fn_hitung_ppn(fn_hitung_subtotal(harga, ?)) AS ppn
+                     FROM barang WHERE idbarang = ?',
+                    [$jumlah, $jumlah, $idbarang]
+                ),
+            ],
+            [
+                'jenis' => 'FUNCTION',
+                'nama'  => 'fn_get_margin_aktif',
+                'info'  => 'Id margin yang sedang aktif (hanya boleh 1). Dipakai penjualan agar margin terisi otomatis.',
+                'sql'   => 'SELECT fn_get_margin_aktif()',
+                'rows'  => DB::select(
+                    'SELECT fn_get_margin_aktif() AS idmargin_aktif,
+                            (SELECT persen FROM margin_penjualan WHERE idmargin_penjualan = fn_get_margin_aktif()) AS persen'
                 ),
             ],
             [
@@ -52,8 +86,7 @@ class UjiSpFunctionController extends Controller
                 'info'  => 'Sisa stok terkini per barang (dari baris kartu stok terakhir).',
                 'sql'   => 'SELECT nama, fn_get_sisa_stok(idbarang) FROM barang',
                 'rows'  => DB::select(
-                    'SELECT idbarang, nama, fn_get_sisa_stok(idbarang) AS stok_terkini
-                     FROM barang'
+                    'SELECT idbarang, nama, fn_get_sisa_stok(idbarang) AS stok_terkini FROM barang'
                 ),
             ],
             [
@@ -69,13 +102,7 @@ class UjiSpFunctionController extends Controller
             ],
 
             // ============ STORED PROCEDURE (dipanggil dengan CALL) ============
-            [
-                'jenis' => 'PROCEDURE',
-                'nama'  => 'sp_stok_barang_rendah',
-                'info'  => 'Barang yang stoknya kurang dari atau sama dengan batas.',
-                'sql'   => "CALL sp_stok_barang_rendah($batas)",
-                'rows'  => DB::select('CALL sp_stok_barang_rendah(?)', [$batas]),
-            ],
+            // sp_stok_barang_rendah DIHAPUS: notifikasi stok rendah sekarang di frontend.
             [
                 'jenis' => 'PROCEDURE',
                 'nama'  => 'sp_riwayat_kartu_stok_barang',
@@ -99,16 +126,16 @@ class UjiSpFunctionController extends Controller
             ],
         ];
 
-        // Data untuk dropdown form
-        $users    = DB::table('user')->select('iduser', 'username')->orderBy('iduser')->get();
-        $vendors  = DB::table('vendor')->select('idvendor', 'nama_vendor')->orderBy('idvendor')->get();
-        $barangs  = DB::table('barang')->select('idbarang', 'nama')->orderBy('idbarang')->get();
-        $margins  = DB::table('margin_penjualan')->select('idmargin_penjualan', 'persen')
-                        ->where('status', 1)->orderBy('idmargin_penjualan')->get();
+        // Dropdown form (raw SQL)
+        $users   = DB::select('SELECT iduser, username FROM `user` ORDER BY iduser');
+        $vendors = DB::select('SELECT idvendor, nama_vendor FROM vendor ORDER BY idvendor');
+        $barangs = DB::select('SELECT idbarang, nama FROM barang ORDER BY idbarang');
+        // Semua margin (aktif & nonaktif) boleh dipakai untuk menguji function
+        $margins = DB::select('SELECT idmargin_penjualan, persen, status FROM margin_penjualan ORDER BY idmargin_penjualan');
 
         return view('sp_function.uji_sp_function', compact(
-            'hasil', 'users', 'vendors', 'barangs', 'margins',
-            'iduser', 'idvendor', 'idbarang', 'idmargin', 'batas'
+            'db', 'hasil', 'users', 'vendors', 'barangs', 'margins',
+            'iduser', 'idvendor', 'idbarang', 'idmargin', 'jumlah'
         ));
     }
 }

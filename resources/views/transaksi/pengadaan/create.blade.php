@@ -1,54 +1,79 @@
 @extends('layouts.app')
 
-@section('title', 'Buat Pengadaan Barang')
-
 @section('content')
-<div class="container mt-4">
-    <div class="card shadow p-4 border-0 rounded-4" style="max-width: 700px; margin: auto;">
-        <h3 class="fw-bold mb-3 text-dark"><i class="fa-solid fa-file-invoice-dollar text-success me-2"></i> Form Pengadaan Barang</h3>
-        
-        <form action="/transaksi/pengadaan" method="POST">
+<div class="container py-4">
+    <div class="card shadow-sm border-0" style="border-radius:16px"><div class="card-body">
+        <h3 class="fw-bold mb-1">Buat Pengadaan Baru</h3>
+        <p class="text-muted">Pilih vendor, lalu tambahkan barang (boleh lebih dari satu). Harga mengikuti harga barang; subtotal, PPN, dan total dihitung otomatis oleh database.</p>
+
+        @if(session('error')) <div class="alert alert-danger">{{ session('error') }}</div> @endif
+        @if($errors->any()) <div class="alert alert-danger">{{ $errors->first() }}</div> @endif
+
+        <form method="POST" action="{{ url('/transaksi/pengadaan') }}">
             @csrf
             <div class="mb-3">
-                <label class="form-label small fw-bold text-secondary">Pilih Vendor / Supplier</label>
+                <label class="form-label fw-bold">Vendor</label>
                 <select name="vendor_idvendor" class="form-select" required>
-                    <option value="">-- Pilih Vendor --</option>
+                    <option value="">-- Pilih vendor --</option>
                     @foreach($vendors as $v)
-                        <option value="{{ $v->idvendor }}">{{ $v->nama_vendor }} ({{ $v->keterangan_badan_hukum }})</option>
+                        <option value="{{ $v->idvendor }}" @selected(old('vendor_idvendor') == $v->idvendor)>
+                            {{ $v->nama_vendor }} ({{ $v->keterangan_badan_hukum }})
+                        </option>
                     @endforeach
                 </select>
             </div>
 
-            <hr>
-            <h5 class="fw-bold text-secondary">Item Barang</h5>
-            <div class="mb-3">
-                <label class="form-label small fw-bold text-secondary">Barang</label>
-                <select name="idbarang[0]" class="form-select" required>
-                    <option value="">-- Pilih Barang --</option>
-                    @foreach($barangs as $b)
-                        <option value="{{ $b->idbarang }}">{{ $b->nama }}</option>
-                    @endforeach
-                </select>
-            </div>
+            <table class="table align-middle" id="tbl">
+                <thead class="table-dark"><tr><th>Barang</th><th width="120">Jumlah</th><th width="160">Harga (otomatis)</th><th width="170">Estimasi Subtotal</th><th width="60"></th></tr></thead>
+                <tbody></tbody>
+            </table>
+            <button type="button" id="addRow" class="btn btn-outline-primary mb-3">+ Tambah Barang</button>
 
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label small fw-bold text-secondary">Jumlah (Qty)</label>
-                    <input type="number" name="jumlah[0]" class="form-control" value="1" min="1" required>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label small fw-bold text-secondary">Harga Satuan (Rp)</label>
-                    <input type="number" name="harga_satuan[0]" class="form-control" placeholder="Contoh: 70000" required>
-                </div>
+            <div class="text-end">
+                <div>Estimasi subtotal: <strong id="estSub">Rp 0</strong></div>
+                <small class="text-muted">PPN & total final dihitung otomatis</small>
             </div>
-
-            <div class="d-flex gap-2">
-                <button type="submit" class="btn btn-success px-4 fw-semibold shadow-sm">
-                    <i class="fa-solid fa-floppy-disk me-1"></i> Simpan Pengadaan
-                </button>
-                <a href="/transaksi/pengadaan" class="btn btn-secondary px-4 fw-semibold">Batal</a>
-            </div>
+            <div class="mt-3"><button class="btn btn-success">Simpan Pengadaan</button>
+                <a href="{{ url('/transaksi/pengadaan') }}" class="btn btn-light">Batal</a></div>
         </form>
-    </div>
+    </div></div>
 </div>
+
+<template id="rowTpl">
+    <tr>
+        <td>
+            <select name="idbarang[]" class="form-select brg" required>
+                <option value="">-- Pilih barang --</option>
+                @foreach($barangs as $b)
+                    <option value="{{ $b->idbarang }}" data-harga="{{ $b->harga_dasar }}">{{ $b->nama_barang }} ({{ $b->nama_satuan }})</option>
+                @endforeach
+            </select>
+        </td>
+        <td><input type="number" name="jumlah[]" class="form-control qty" min="1" value="1" required></td>
+        <td class="harga">Rp 0</td>
+        <td class="sub">Rp 0</td>
+        <td><button type="button" class="btn btn-sm btn-outline-danger del">&times;</button></td>
+    </tr>
+</template>
+
+<script>
+const rp = n => 'Rp ' + Number(n).toLocaleString('id-ID');
+const body = document.querySelector('#tbl tbody');
+function hitung() {
+    let total = 0;
+    body.querySelectorAll('tr').forEach(tr => {
+        const h = Number(tr.querySelector('.brg').selectedOptions[0]?.dataset.harga || 0);
+        const q = Number(tr.querySelector('.qty').value || 0);
+        tr.querySelector('.harga').textContent = rp(h);
+        tr.querySelector('.sub').textContent = rp(h * q);
+        total += h * q;
+    });
+    document.getElementById('estSub').textContent = rp(total);
+}
+function tambah() { body.appendChild(document.getElementById('rowTpl').content.cloneNode(true)); hitung(); }
+document.getElementById('addRow').onclick = tambah;
+body.addEventListener('input', hitung);
+body.addEventListener('click', e => { if (e.target.classList.contains('del') && body.rows.length > 1) { e.target.closest('tr').remove(); hitung(); } });
+tambah();
+</script>
 @endsection

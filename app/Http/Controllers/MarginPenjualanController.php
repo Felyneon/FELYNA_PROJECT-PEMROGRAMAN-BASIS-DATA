@@ -3,13 +3,14 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\MarginPenjualan;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Database\QueryException;
 
 class MarginPenjualanController extends Controller
 {
     public function index()
     {
-        $margins = MarginPenjualan::with('user')->get();
+        $margins = DB::select("SELECT * FROM view_margin ORDER BY idmargin_penjualan");
         return view('margin.index', compact('margins'));
     }
 
@@ -25,18 +26,29 @@ class MarginPenjualanController extends Controller
             'status' => 'required|in:0,1',
         ]);
 
-        MarginPenjualan::create([
-            'persen' => $request->persen,
-            'status' => $request->status,
-            'iduser' => session('iduser') ?? 1,
+        // Margin baru selalu masuk sebagai nonaktif dulu
+        DB::insert("INSERT INTO margin_penjualan (persen, status, iduser) VALUES (?, 0, ?)", [
+            $request->persen,
+            session('iduser') ?? 1,
         ]);
+        $id = DB::getPdo()->lastInsertId();
+
+        // Jika diminta aktif, SP menonaktifkan yang lain => hanya 1 margin aktif
+        if ($request->status == 1) {
+            DB::statement("CALL sp_aktifkan_margin(?)", [$id]);
+        }
 
         return redirect('/margin')->with('success', 'Margin penjualan baru berhasil ditambahkan!');
     }
 
     public function edit($id)
     {
-        $margin = MarginPenjualan::findOrFail($id);
+        $rows = DB::select("SELECT * FROM margin_penjualan WHERE idmargin_penjualan = ?", [$id]);
+        if (empty($rows)) {
+            abort(404);
+        }
+        $margin = $rows[0];
+
         return view('margin.edit', compact('margin'));
     }
 
@@ -47,19 +59,38 @@ class MarginPenjualanController extends Controller
             'status' => 'required|in:0,1',
         ]);
 
-        $margin = MarginPenjualan::findOrFail($id);
-        $margin->update([
-            'persen' => $request->persen,
-            'status' => $request->status,
+        DB::update("UPDATE margin_penjualan SET persen = ? WHERE idmargin_penjualan = ?", [
+            $request->persen, $id,
         ]);
+
+        // Status hanya bisa berubah menjadi AKTIF (yang lain otomatis nonaktif).
+        // Menonaktifkan margin aktif tanpa pengganti ditolak: penjualan butuh 1 margin aktif.
+        if ($request->status == 1) {
+            DB::statement("CALL sp_aktifkan_margin(?)", [$id]);
+        }
 
         return redirect('/margin')->with('success', 'Margin penjualan berhasil diperbarui!');
     }
 
+    /** Tombol "Aktifkan" di daftar margin */
+    public function aktifkan($id)
+    {
+        DB::statement("CALL sp_aktifkan_margin(?)", [$id]);
+        return redirect('/margin')->with('success', 'Margin berhasil diaktifkan. Margin lain otomatis nonaktif.');
+    }
+
     public function destroy($id)
     {
-        $margin = MarginPenjualan::findOrFail($id);
-        $margin->delete();
+        try {
+            // Margin aktif tidak boleh dihapus
+            $hapus = DB::delete("DELETE FROM margin_penjualan WHERE idmargin_penjualan = ? AND status = 0", [$id]);
+        } catch (QueryException $e) {
+            return redirect('/margin')->with('error', 'Margin sudah dipakai transaksi penjualan, tidak bisa dihapus.');
+        }
+
+        if ($hapus === 0) {
+            return redirect('/margin')->with('error', 'Margin yang sedang aktif tidak bisa dihapus. Aktifkan margin lain dulu.');
+        }
 
         return redirect('/margin')->with('success', 'Margin penjualan berhasil dihapus!');
     }
