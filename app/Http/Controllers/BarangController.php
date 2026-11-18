@@ -1,147 +1,139 @@
 <?php
 
 namespace App\Http\Controllers;
-use App\Models\Barang;
+
 use Illuminate\Http\Request;
-use App\Models\Satuan;
+use Illuminate\Support\Facades\DB;
 
 class BarangController extends Controller
 {
-    /**
-     * Menampilkan daftar katalog barang pakaian
-     */
     public function index()
     {
-        // Mengambil seluruh data barang beserta relasi satuannya
-           $barangs = Barang::with('satuan')
-        ->selectRaw('*, fn_get_sisa_stok(idbarang) AS stok_terkini')
-        ->get();
-
-    return view('barang.index', compact('barangs'));
-
-        // Atau jika berbentuk API JSON:
-        // return response()->json($barangs);
+        $barangs = DB::select("SELECT * FROM view_detail_barang_lengkap ORDER BY idbarang");
+        return view('barang.index', compact('barangs'));
     }
-    /**
-     * Menampilkan detail satu barang
-     */
+
     public function show($id)
     {
-        $barang = Barang::with('satuan')->findOrFail($id);
+        $rows = DB::select("
+            SELECT b.*, s.nama_satuan, fn_get_sisa_stok(b.idbarang) AS stok_terkini
+            FROM barang b
+            JOIN satuan s ON b.idsatuan = s.idsatuan
+            WHERE b.idbarang = ?
+        ", [$id]);
+
+        if (empty($rows)) {
+            abort(404);
+        }
+        $barang = $rows[0];
+
+        // Catatan: di view barang/show.blade.php ganti $barang->satuan->nama_satuan
+        // menjadi $barang->nama_satuan (tidak ada relasi Eloquent lagi).
         return view('barang.show', compact('barang'));
     }
 
-    /**
-     * Menampilkan form edit barang
-     */
-    public function edit($id)
+    public function create()
     {
-        $barang = Barang::findOrFail($id);
-        $satuans = \App\Models\Satuan::all();
-        return view('barang.edit', compact('barang', 'satuans'));
+        $satuans = DB::select("SELECT * FROM satuan ORDER BY nama_satuan");
+        return view('barang.create', compact('satuans'));
     }
 
-    /**
-     * Memproses update data barang ke database
-     */
-    public function update(Request $request, $id)
+    public function store(Request $request)
     {
         $request->validate([
-            'jenis' => 'required',
-            'nama' => 'required',
-            'harga' => 'required|integer',
-            'idsatuan' => 'required|exists:satuan,idsatuan',
+            'jenis'     => 'required',
+            'nama'      => 'required',
+            'harga'     => 'required|integer',
+            'idsatuan'  => 'required|exists:satuan,idsatuan',
             'deskripsi' => 'nullable|string',
-            'ukuran' => 'nullable|string',
-            'gambar' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
-            
+            'ukuran'    => 'nullable|string',
+            'gambar'    => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
         ]);
 
-        $barang = Barang::findOrFail($id);
-
-        $data = [
-            'jenis' => $request->jenis,
-            'nama' => $request->nama,
-            'harga' => $request->harga,
-            'idsatuan' => $request->idsatuan,
-            'deskripsi' => $request->deskripsi,
-            'ukuran' => $request->ukuran,
-            'status' => $request->status,
-        ];
-
-        // Proses Upload Gambar Produk Asli
+        $gambar = null;
         if ($request->hasFile('gambar')) {
-            // Hapus gambar lama jika ada
-            if ($barang->gambar && file_exists(public_path($barang->gambar))) {
-                unlink(public_path($barang->gambar));
-            }
-
             $file = $request->file('gambar');
             $filename = time() . '_' . $file->getClientOriginalName();
             $file->move(public_path('uploads/barang'), $filename);
-            
-            $data['gambar'] = 'uploads/barang/' . $filename;
+            $gambar = 'uploads/barang/' . $filename;
         }
 
-        $barang->update($data);
+        // Barang baru otomatis aktif (status = 1)
+        DB::insert("
+            INSERT INTO barang (jenis, nama, harga, idsatuan, deskripsi, ukuran, gambar, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+        ", [
+            $request->jenis, $request->nama, $request->harga, $request->idsatuan,
+            $request->deskripsi, $request->ukuran, $gambar,
+        ]);
+
+        return redirect('/dashboard')->with('success', 'Produk pakaian baru berhasil ditambahkan!');
+    }
+
+    public function edit($id)
+    {
+        $rows = DB::select("SELECT * FROM barang WHERE idbarang = ?", [$id]);
+        if (empty($rows)) {
+            abort(404);
+        }
+        $barang  = $rows[0];
+        $satuans = DB::select("SELECT * FROM satuan ORDER BY nama_satuan");
+
+        return view('barang.edit', compact('barang', 'satuans'));
+    }
+
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'jenis'     => 'required',
+            'nama'      => 'required',
+            'harga'     => 'required|integer',
+            'idsatuan'  => 'required|exists:satuan,idsatuan',
+            'deskripsi' => 'nullable|string',
+            'ukuran'    => 'nullable|string',
+            'gambar'    => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+        ]);
+
+        $rows = DB::select("SELECT gambar FROM barang WHERE idbarang = ?", [$id]);
+        if (empty($rows)) {
+            abort(404);
+        }
+
+        $gambarBaru = null;
+        if ($request->hasFile('gambar')) {
+            $lama = $rows[0]->gambar;
+            if ($lama && file_exists(public_path($lama))) {
+                unlink(public_path($lama));
+            }
+            $file = $request->file('gambar');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $file->move(public_path('uploads/barang'), $filename);
+            $gambarBaru = 'uploads/barang/' . $filename;
+        }
+
+        // Status TIDAK diubah di sini (jangan sampai jadi NULL kalau form tidak mengirim status).
+        // Aktif/nonaktif lewat tombol toggle di dashboard.
+        // gambar = COALESCE(?, gambar): kalau tidak upload baru, gambar lama dipertahankan.
+        DB::update("
+            UPDATE barang
+            SET jenis = ?, nama = ?, harga = ?, idsatuan = ?, deskripsi = ?, ukuran = ?,
+                gambar = COALESCE(?, gambar)
+            WHERE idbarang = ?
+        ", [
+            $request->jenis, $request->nama, $request->harga, $request->idsatuan,
+            $request->deskripsi, $request->ukuran, $gambarBaru, $id,
+        ]);
 
         return redirect('/dashboard')->with('success', 'Data produk pakaian berhasil diperbarui!');
     }
 
     /**
-     * Menghapus data barang
+     * Aktifkan / nonaktifkan barang (pengganti Delete).
+     * Memanggil Stored Procedure sp_toggle_status_barang.
      */
-    //public function destroy($id)
-    //{
-        //Barang::destroy($id);
-        //return redirect('/dashboard')->with('success', 'Data barang berhasil dihapus!');
-    //}
-    public function destroy($id)
-{
-    Barang::where('idbarang', $id)->update(['status' => 0]);
-    return redirect('/dashboard')->with('success', 'Barang dinonaktifkan.');
-}
-    // Menampilkan form tambah barang
-    public function create()
+    public function toggle($id)
     {
-        $satuans = Satuan::all();
-        return view('barang.create', compact('satuans'));
-    }
-
-    // Menyimpan data barang baru ke database
-    public function store(Request $request)
-    {
-    $request->validate([
-        'jenis' => 'required',
-        'nama' => 'required',
-        'harga' => 'required|integer',
-        'idsatuan' => 'required|exists:satuan,idsatuan',
-        'deskripsi' => 'nullable|string',
-        'ukuran' => 'nullable|string',
-        'gambar' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
-        
-    ]);
-
-    $data = [
-        'jenis' => $request->jenis,
-        'nama' => $request->nama,
-        'harga' => $request->harga,
-        'idsatuan' => $request->idsatuan,
-        'deskripsi' => $request->deskripsi,
-        'ukuran' => $request->ukuran,
-        'status' => 1
-    ];
-
-    // Proses upload gambar jika ada
-    if ($request->hasFile('gambar')) {
-        $file = $request->file('gambar');
-        $filename = time() . '_' . $file->getClientOriginalName();
-        $file->move(public_path('uploads/barang'), $filename);
-        $data['gambar'] = 'uploads/barang/' . $filename;
-    }
-
-        Barang::create($data);
-
-        return redirect('/dashboard')->with('success', 'Produk pakaian baru berhasil ditambahkan!');
+        DB::statement("CALL sp_toggle_status_barang(?)", [$id]);
+        return redirect('/dashboard')->with('success', 'Status barang berhasil diubah.');
     }
 }

@@ -1,65 +1,75 @@
+
 @extends('layouts.app')
 
-@section('title', 'Dashboard - Master Barang')
-
 @section('content')
-
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <div class="col-md-6">
-         <h3 class="fw-bold text-dark"><i class="fa-solid fa-boxes-stacked text-primary me-2"></i> Dashboard Master Barang</h3>
-        <p class="text-muted small mb-0">Kelola katalog produk pakaian dan stok store dengan mudah.</p>
+@php
+    // NOTIFIKASI STOK RENDAH: logika di frontend, bukan di database
+    $rendah = collect($barangs)->filter(fn($b) => $b->status == 1 && $b->stok_terkini <= $batasStok);
+@endphp
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+            <h2 class="fw-bold">Dashboard Master Barang</h2>
+            <p class="text-muted mb-0">Kelola katalog produk pakaian dan stok store</p>
+        </div>
+        <a href="{{ url('/barang/create') }}" class="btn btn-success">+ Tambah Barang Baru</a>
     </div>
-    <!-- Tombol Insert / Tambah Barang -->
-    <a href="/barang/create" class="btn btn-success fw-semibold shadow-sm">
-        <i class="fa-solid fa-plus me-1"></i> Tambah Barang Baru
-    </a>
-</div>
 
-<div class="card card-custom p-3 bg-white">
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle">
+    @if(session('success')) <div class="alert alert-success">{{ session('success') }}</div> @endif
+    @if(session('error'))   <div class="alert alert-danger">{{ session('error') }}</div> @endif
+
+    @if($rendah->count() > 0)
+        <div class="alert alert-warning">
+            <strong>Stok menipis (≤ {{ $batasStok }}), segera lakukan pengadaan:</strong>
+            @foreach($rendah as $b)
+                <span class="badge bg-danger ms-1">{{ $b->nama_barang }}: {{ $b->stok_terkini }} {{ $b->nama_satuan }}</span>
+            @endforeach
+        </div>
+    @endif
+
+    <div class="card shadow-sm border-0" style="border-radius:16px">
+        <div class="card-body">
+            <table class="table align-middle">
                 <thead class="table-dark">
                     <tr>
-                        <th class="py-3">No</th>
-                        <th class="py-3">Jenis Pakaian</th>
-                        <th class="py-3">Nama Barang</th>
-                        <th class="py-3">Satuan</th>
-                        <th class="py-3">Harga Jual</th>
-                        <th class="py-3 text-center">Aksi</th>
+                        <th>No</th><th>Jenis Pakaian</th><th>Nama Barang</th><th>Satuan</th>
+                        <th>Harga Dasar</th><th>Stok</th><th>Status</th><th class="text-center">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
-        @foreach($barangs as $index => $item)
-        <tr>
-            <td class="fw-semibold">{{ $index + 1 }}</td>
-            <td><span class="badge bg-secondary-subtle text-secondary px-2 py-1">{{ $item->jenis }}</span></td>
-            <td class="fw-bold text-dark">{{ $item->nama }}</td>
-            <td>{{ $item->satuan->nama_satuan ?? '-' }}</td>
-            <td class="text-success fw-bold">Rp {{ number_format($item->harga, 0, ',', '.') }}</td>
-            <td class="text-center">
-                <!-- Tombol Detail -->
-                <a href="/barang/{{ $item->idbarang }}" class="btn btn-info btn-sm text-white px-2 py-1 me-1" title="Detail">
-                    <i class="fa-solid fa-eye"></i> Details
-                </a>
-
-                <!-- Tombol Edit -->
-                <a href="/barang/{{ $item->idbarang }}/edit" class="btn btn-warning btn-sm text-dark px-2 py-1 me-1" title="Edit">
-                    <i class="fa-solid fa-pen-to-square"></i> Edit
-                </a>
-
-                <!-- Form Tombol Delete -->
-                <form action="/barang/{{ $item->idbarang }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah yakin ingin menghapus barang ini?')">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="btn btn-danger btn-sm px-2 py-1" title="Hapus">
-                        <i class="fa-solid fa-trash"></i> Delete
-                    </button>
-                </form>
-            </td>
-        </tr>
-        @endforeach
-    </tbody>
+                @foreach($barangs as $i => $b)
+                    <tr class="{{ $b->status == 1 ? '' : 'table-secondary text-muted' }}">
+                        <td>{{ $i + 1 }}</td>
+                        <td><span class="badge bg-light text-dark border">{{ $b->jenis }}</span></td>
+                        <td class="fw-bold">{{ $b->nama_barang }}</td>
+                        <td>{{ $b->nama_satuan }}</td>
+                        <td class="fw-bold text-success">Rp {{ number_format($b->harga_dasar, 0, ',', '.') }}</td>
+                        <td>
+                            {{ $b->stok_terkini }}
+                            @if($b->status == 1 && $b->stok_terkini <= $batasStok)
+                                <span class="badge bg-danger">Stok rendah</span>
+                            @endif
+                        </td>
+                        <td>
+                            @if($b->status == 1) <span class="badge bg-success">Aktif</span>
+                            @else <span class="badge bg-secondary">Nonaktif</span> @endif
+                        </td>
+                        <td class="text-center">
+                            <a href="{{ url('/barang/'.$b->idbarang) }}" class="btn btn-sm btn-info text-white">Details</a>
+                            <a href="{{ url('/barang/'.$b->idbarang.'/edit') }}" class="btn btn-sm btn-warning">Edit</a>
+                            <form action="{{ url('/barang/'.$b->idbarang.'/toggle') }}" method="POST" class="d-inline"
+                                  onsubmit="return confirm('{{ $b->status == 1 ? 'Nonaktifkan' : 'Aktifkan' }} barang ini?')">
+                                @csrf
+                                @if($b->status == 1)
+                                    <button class="btn btn-sm btn-danger">Nonaktifkan</button>
+                                @else
+                                    <button class="btn btn-sm btn-success">Aktifkan</button>
+                                @endif
+                            </form>
+                        </td>
+                    </tr>
+                @endforeach
+                </tbody>
             </table>
         </div>
     </div>

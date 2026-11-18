@@ -11,7 +11,7 @@
 
     <h2 class="mb-1">Uji Stored Procedure dan Function</h2>
     <p class="text-muted">
-        Database <code>db_project_store</code>. Semua hasil di bawah dihitung langsung oleh
+        Database <code>{{ $db }}</code>. Semua hasil di bawah dihitung langsung oleh
         SP/Function MySQL, bukan oleh PHP.
     </p>
 
@@ -22,9 +22,7 @@
                 <label class="form-label">Kasir / User (SP laporan penjualan)</label>
                 <select name="iduser" class="form-select">
                     @foreach ($users as $u)
-                        <option value="{{ $u->iduser }}" @selected($iduser == $u->iduser)>
-                            {{ $u->iduser }} - {{ $u->username }}
-                        </option>
+                        <option value="{{ $u->iduser }}" @selected($iduser == $u->iduser)>{{ $u->iduser }} - {{ $u->username }}</option>
                     @endforeach
                 </select>
             </div>
@@ -32,19 +30,15 @@
                 <label class="form-label">Vendor (SP laporan pengadaan)</label>
                 <select name="idvendor" class="form-select">
                     @foreach ($vendors as $v)
-                        <option value="{{ $v->idvendor }}" @selected($idvendor == $v->idvendor)>
-                            {{ $v->idvendor }} - {{ $v->nama_vendor }}
-                        </option>
+                        <option value="{{ $v->idvendor }}" @selected($idvendor == $v->idvendor)>{{ $v->idvendor }} - {{ $v->nama_vendor }}</option>
                     @endforeach
                 </select>
             </div>
             <div class="col-md-4">
-                <label class="form-label">Barang (riwayat kartu stok dan harga jual)</label>
+                <label class="form-label">Barang (kartu stok, harga jual, subtotal)</label>
                 <select name="idbarang" class="form-select">
                     @foreach ($barangs as $b)
-                        <option value="{{ $b->idbarang }}" @selected($idbarang == $b->idbarang)>
-                            {{ $b->idbarang }} - {{ $b->nama }}
-                        </option>
+                        <option value="{{ $b->idbarang }}" @selected($idbarang == $b->idbarang)>{{ $b->idbarang }} - {{ $b->nama }}</option>
                     @endforeach
                 </select>
             </div>
@@ -53,14 +47,14 @@
                 <select name="idmargin" class="form-select">
                     @foreach ($margins as $m)
                         <option value="{{ $m->idmargin_penjualan }}" @selected($idmargin == $m->idmargin_penjualan)>
-                            {{ $m->idmargin_penjualan }} - {{ $m->persen }}%
+                            {{ $m->idmargin_penjualan }} - {{ $m->persen }}% {{ $m->status == 1 ? '(AKTIF)' : '(nonaktif)' }}
                         </option>
                     @endforeach
                 </select>
             </div>
             <div class="col-md-4">
-                <label class="form-label">Batas stok rendah (SP stok rendah)</label>
-                <input type="number" name="batas" min="0" value="{{ $batas }}" class="form-control">
+                <label class="form-label">Jumlah barang (fn subtotal &amp; PPN)</label>
+                <input type="number" name="jumlah" min="1" value="{{ $jumlah }}" class="form-control">
             </div>
             <div class="col-md-4 d-flex align-items-end">
                 <button type="submit" class="btn btn-primary w-100">Jalankan ulang</button>
@@ -73,9 +67,7 @@
         <div class="card mb-3">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <strong>{{ $h['nama'] }}</strong>
-                <span class="badge {{ $h['jenis'] === 'FUNCTION' ? 'bg-success' : 'bg-primary' }}">
-                    {{ $h['jenis'] }}
-                </span>
+                <span class="badge {{ $h['jenis'] === 'FUNCTION' ? 'bg-success' : 'bg-primary' }}">{{ $h['jenis'] }}</span>
             </div>
             <div class="card-body">
                 <p class="mb-1 text-muted">{{ $h['info'] }}</p>
@@ -104,9 +96,7 @@
                     </div>
                     <small class="text-muted">{{ count($h['rows']) }} baris dikembalikan.</small>
                 @else
-                    <div class="alert alert-warning mt-3 mb-0">
-                        Berhasil dijalankan, tetapi tidak ada baris yang cocok dengan parameter ini.
-                    </div>
+                    <div class="alert alert-warning mt-3 mb-0">Berhasil dijalankan, tetapi tidak ada baris yang cocok dengan parameter ini.</div>
                 @endif
             </div>
         </div>
