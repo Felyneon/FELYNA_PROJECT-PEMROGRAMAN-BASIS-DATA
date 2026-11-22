@@ -3,6 +3,8 @@
 @section('content')
 <div class="container py-4" style="max-width:760px">
     @if(session('success')) <div class="alert alert-success d-print-none">{{ session('success') }}</div> @endif
+    @if(session('error'))   <div class="alert alert-danger d-print-none">{{ session('error') }}</div> @endif
+
     <div class="card shadow-sm border-0" style="border-radius:16px"><div class="card-body p-4">
         <div class="text-center mb-4">
             <h4 class="fw-bold mb-0">STRUK PENJUALAN</h4>
@@ -13,6 +15,10 @@
             <div class="col-6">
                 <div><span class="text-muted">No. Transaksi</span><br><strong>#{{ $penjualan->idpenjualan }}</strong></div>
                 <div class="mt-2"><span class="text-muted">Tanggal</span><br><strong>{{ $penjualan->tanggal_transaksi }}</strong></div>
+                <div class="mt-2"><span class="text-muted">Status</span><br>
+                    @if($penjualan->status_bayar === 'D') <span class="badge bg-warning text-dark">Draft (belum dibayar)</span>
+                    @else <span class="badge bg-success">Dibayar</span> <small class="text-muted">{{ $penjualan->dibayar_at }}</small> @endif
+                </div>
             </div>
             <div class="col-6">
                 <div><span class="text-muted">Kasir</span><br><strong>{{ $penjualan->nama_lengkap_kasir ?? $penjualan->nama_kasir }}</strong> <small>({{ $penjualan->nama_kasir }})</small></div>
@@ -40,9 +46,30 @@
             </tfoot>
         </table>
 
-        <div class="d-print-none">
+        <div class="d-print-none d-flex flex-wrap gap-2">
             <a href="{{ url('/transaksi/penjualan') }}" class="btn btn-light">Kembali</a>
-            <button onclick="window.print()" class="btn btn-primary">Cetak</button>
+
+            @if($penjualan->status_bayar === 'D')
+                @akses('penjualan.bayar')
+                    <form action="{{ url('/transaksi/penjualan/'.$penjualan->idpenjualan.'/bayar') }}" method="POST"
+                          onsubmit="return confirm('Proses pembayaran? Setelah dibayar, transaksi tidak dapat diubah atau dihapus.')">
+                        @csrf <button class="btn btn-success">Bayar</button>
+                    </form>
+                @endakses
+                @akses('penjualan.update')
+                    <a href="{{ url('/transaksi/penjualan/'.$penjualan->idpenjualan.'/edit') }}" class="btn btn-warning">Ubah</a>
+                @endakses
+                @akses('penjualan.delete')
+                    <form action="{{ url('/transaksi/penjualan/'.$penjualan->idpenjualan) }}" method="POST"
+                          onsubmit="return confirm('Hapus draft ini? Stok akan dikembalikan.')">
+                        @csrf @method('DELETE') <button class="btn btn-danger">Hapus Draft</button>
+                    </form>
+                @endakses
+            @else
+                <span class="text-muted align-self-center small">Transaksi sudah dibayar: tidak dapat diubah atau dihapus.</span>
+            @endif
+
+            <button onclick="window.print()" class="btn btn-primary ms-auto">Cetak</button>
         </div>
     </div></div>
 </div>

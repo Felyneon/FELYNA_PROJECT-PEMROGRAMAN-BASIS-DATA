@@ -42,9 +42,23 @@
         </table>
 
         <div class="d-print-none">
-            <a href="{{ url('/transaksi/penerimaan') }}" class="btn btn-light">Kembali</a>
-            <button onclick="window.print()" class="btn btn-primary">Cetak</button>
-        </div>
+    <a href="{{ url('/transaksi/penerimaan') }}" class="btn btn-light">
+        Kembali
+    </a>
+
+    @akses('penerimaan.update')
+        <a
+            href="{{ url('/transaksi/penerimaan/' . $penerimaan->idpenerimaan . '/edit') }}"
+            class="btn btn-warning"
+        >
+            Edit Penerimaan
+        </a>
+    @endakses
+
+    <button onclick="window.print()" class="btn btn-primary">
+        Cetak
+    </button>
+</div>
     </div></div>
 </div>
 @endsection

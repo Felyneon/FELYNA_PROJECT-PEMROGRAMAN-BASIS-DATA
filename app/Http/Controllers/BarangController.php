@@ -136,4 +136,53 @@ class BarangController extends Controller
         DB::statement("CALL sp_toggle_status_barang(?)", [$id]);
         return redirect('/dashboard')->with('success', 'Status barang berhasil diubah.');
     }
+
+public function destroy($id)
+{
+    $barang = DB::table('barang')
+        ->where('idbarang', $id)
+        ->first();
+
+    if (!$barang) {
+        abort(404);
+    }
+
+    // Periksa semua sumber riwayat transaksi
+    $pernahDigunakan =
+        DB::table('detail_penjualan')
+            ->where('idbarang', $id)->exists()
+        ||
+        DB::table('detail_pengadaan')
+            ->where('idbarang', $id)->exists()
+        ||
+        DB::table('detail_penerimaan')
+            ->where('barang_idbarang', $id)->exists()
+        ||
+        DB::table('kartu_stok')
+            ->where('idbarang', $id)->exists();
+
+    if ($pernahDigunakan) {
+        return back()->with(
+            'error',
+            'Produk tidak dapat dihapus karena sudah memiliki riwayat transaksi.'
+        );
+    }
+
+    try {
+        DB::table('barang')
+            ->where('idbarang', $id)
+            ->delete();
+    } catch (\Illuminate\Database\QueryException $e) {
+        return back()->with(
+            'error',
+            'Produk tidak dapat dihapus karena masih memiliki data terkait.'
+        );
+    }
+
+    return redirect('/dashboard')->with(
+        'success',
+        'Produk berhasil dihapus.'
+    );
+}
+
 }

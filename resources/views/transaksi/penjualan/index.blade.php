@@ -1,61 +1,65 @@
 @extends('layouts.app')
 
-@section('title', 'Data Penjualan Kasir - Felyneon Store')
+@section('title', 'Data Penjualan Kasir')
 
 @section('content')
-<div class="card shadow p-4 border-0 rounded-4">
-    <!-- Header & Tombol Tambah -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h3 class="fw-bold text-dark mb-1"><i class="fa-solid fa-cart-shopping text-primary me-2"></i> Data Penjualan Kasir (POS)</h3>
-            <p class="text-muted small mb-0">Kelola catatan transaksi penjualan pakaian</p>
+<div class="container mt-4">
+    <div class="card shadow-sm border-0" style="border-radius:16px"><div class="card-body">
+        <div class="d-flex justify-content-between mb-3">
+            <div>
+                <h3 class="fw-bold">Data Penjualan Kasir (POS)</h3>
+                <p class="text-muted mb-0">
+                    @akses('penjualan.lihat_semua') Seluruh transaksi penjualan. @else Transaksi penjualan milik akun Anda. @endakses
+                </p>
+            </div>
+            @akses('penjualan.create')
+                <a href="{{ url('/transaksi/penjualan/create') }}" class="btn btn-primary align-self-start">+ Transaksi Baru (POS)</a>
+            @endakses
         </div>
-        <a href="/transaksi/penjualan/create" class="btn btn-primary fw-bold shadow-sm">
-            <i class="fa-solid fa-plus me-1"></i> Transaksi Baru (POS)
-        </a>
-    </div>
 
-    <!-- Tabel Data Penjualan -->
-    <div class="table-responsive">
-        <table class="table table-hover align-middle border">
+        @if(session('success')) <div class="alert alert-success">{{ session('success') }}</div> @endif
+        @if(session('error'))   <div class="alert alert-danger">{{ session('error') }}</div> @endif
+
+        <table class="table table-bordered align-middle">
             <thead class="table-dark">
-                <tr>
-                    <th>No</th>
-                    <th>ID Penjualan</th>
-                    <th>Tanggal Transaksi</th>
-                    <th>Kasir</th>
-                    <th>Subtotal</th>
-                    <th>PPN (11%)</th>
-                    <th>Total Nilai</th>
-                    <th class="text-center">Aksi</th>
-                </tr>
+                <tr><th>No</th><th>ID Penjualan</th><th>Tanggal Transaksi</th><th>Kasir</th><th>Status</th>
+                    <th class="text-end">Subtotal</th><th class="text-end">PPN (11%)</th><th class="text-end">Total Nilai</th><th class="text-center">Aksi</th></tr>
             </thead>
             <tbody>
-                @forelse($penjualans as $index => $item)
+            @forelse($penjualans as $i => $p)
                 <tr>
-                    <td>{{ $index + 1 }}</td>
-                    <td>#{{ $item->idpenjualan }}</td>
-                    <td>{{ $item->tanggal_transaksi }}</td>
+                    <td>{{ $i + 1 }}</td>
+                    <td>#{{ $p->idpenjualan }}</td>
+                    <td>{{ $p->tanggal_transaksi }}</td>
+                    <td>({{ $p->nama_kasir }})</td>
                     <td>
-                        <span class="fw-semibold">{{ $item->nama_lengkap_kasir }}</span> 
-                        <span class="text-muted small">({{ $item->nama_kasir }})</span>
+                        @if($p->status_bayar === 'D') <span class="badge bg-warning text-dark">Draft (belum dibayar)</span>
+                        @else <span class="badge bg-success">Dibayar</span> @endif
                     </td>
-                    <td>Rp {{ number_format($item->subtotal_nilai, 0, ',', '.') }}</td>
-                    <td>Rp {{ number_format($item->ppn, 0, ',', '.') }}</td>
-                    <td class="fw-bold text-success">Rp {{ number_format($item->total_nilai, 0, ',', '.') }}</td>
-                    <td class="text-center">
-                        <a href="/transaksi/penjualan/{{ $item->idpenjualan }}" class="btn btn-sm btn-info text-white shadow-sm">
-                            <i class="fa-solid fa-eye me-1"></i> Detail
-                        </a>
+                    <td class="text-end">Rp {{ number_format($p->subtotal_nilai, 0, ',', '.') }}</td>
+                    <td class="text-end">Rp {{ number_format($p->ppn, 0, ',', '.') }}</td>
+                    <td class="text-end fw-bold text-success">Rp {{ number_format($p->total_nilai, 0, ',', '.') }}</td>
+                    <td class="text-center text-nowrap">
+                        <a href="{{ url('/transaksi/penjualan/'.$p->idpenjualan) }}" class="btn btn-sm btn-info text-white">Detail</a>
+                        @if($p->status_bayar === 'D')
+                            @akses('penjualan.update')
+                                <a href="{{ url('/transaksi/penjualan/'.$p->idpenjualan.'/edit') }}" class="btn btn-sm btn-warning">Ubah</a>
+                            @endakses
+                            @akses('penjualan.delete')
+                                <form action="{{ url('/transaksi/penjualan/'.$p->idpenjualan) }}" method="POST" class="d-inline"
+                                      onsubmit="return confirm('Hapus draft transaksi ini? Stok akan dikembalikan.')">
+                                    @csrf @method('DELETE')
+                                    <button class="btn btn-sm btn-danger">Hapus</button>
+                                </form>
+                            @endakses
+                        @endif
                     </td>
                 </tr>
-                @empty
-                <tr>
-                    <td colspan="8" class="text-center text-muted py-4">Belum ada data transaksi penjualan.</td>
-                </tr>
-                @endforelse
+            @empty
+                <tr><td colspan="9" class="text-center text-muted">Belum ada transaksi penjualan.</td></tr>
+            @endforelse
             </tbody>
         </table>
-    </div>
+    </div></div>
 </div>
 @endsection
