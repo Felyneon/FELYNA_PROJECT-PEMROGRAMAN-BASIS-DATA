@@ -1,4 +1,4 @@
-
+{{-- Ganti 'layouts.app' jika nama layout kamu berbeda --}}
 @extends('layouts.app')
 
 @section('content')
@@ -10,15 +10,24 @@
     <div class="d-flex justify-content-between align-items-start mb-3">
         <div>
             <h2 class="fw-bold">Dashboard Master Barang</h2>
-            <p class="text-muted mb-0">Kelola katalog produk pakaian dan stok store</p>
+            <p class="text-muted mb-0">Kelola katalog produk pakaian</p>
         </div>
-        <a href="{{ url('/barang/create') }}" class="btn btn-success">+ Tambah Barang Baru</a>
+        @akses('barang.create')
+            <a href="{{ url('/barang/create') }}" class="btn btn-success">+ Tambah Barang Baru</a>
+        @endakses
     </div>
 
     @if(session('success')) <div class="alert alert-success">{{ session('success') }}</div> @endif
     @if(session('error'))   <div class="alert alert-danger">{{ session('error') }}</div> @endif
 
-    @if($rendah->count() > 0)
+    @if(!empty($q))
+        <div class="alert alert-info d-flex justify-content-between align-items-center">
+            <span>Hasil pencarian "<strong>{{ $q }}</strong>": {{ count($barangs) }} barang ditemukan.</span>
+            <a href="{{ url('/dashboard') }}" class="btn btn-sm btn-outline-primary">Reset</a>
+        </div>
+    @endif
+
+    @if($rendah->count() > 0 && \App\Support\AksesKasir::bisa('pengadaan.create'))
         <div class="alert alert-warning">
             <strong>Stok menipis (≤ {{ $batasStok }}), segera lakukan pengadaan:</strong>
             @foreach($rendah as $b)
@@ -56,7 +65,10 @@
                         </td>
                         <td class="text-center">
                             <a href="{{ url('/barang/'.$b->idbarang) }}" class="btn btn-sm btn-info text-white">Details</a>
-                            <a href="{{ url('/barang/'.$b->idbarang.'/edit') }}" class="btn btn-sm btn-warning">Edit</a>
+                            @akses('barang.update')
+                                <a href="{{ url('/barang/'.$b->idbarang.'/edit') }}" class="btn btn-sm btn-warning">Edit</a>
+                            @endakses
+                            @akses('barang.status')
                             <form action="{{ url('/barang/'.$b->idbarang.'/toggle') }}" method="POST" class="d-inline"
                                   onsubmit="return confirm('{{ $b->status == 1 ? 'Nonaktifkan' : 'Aktifkan' }} barang ini?')">
                                 @csrf
@@ -66,6 +78,7 @@
                                     <button class="btn btn-sm btn-success">Aktifkan</button>
                                 @endif
                             </form>
+                            @endakses
                         </td>
                     </tr>
                 @endforeach

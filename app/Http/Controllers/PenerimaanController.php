@@ -95,6 +95,137 @@ class PenerimaanController extends Controller
         return redirect('/transaksi/penerimaan/' . $idpenerimaan)->with('success', 'Penerimaan dicatat, stok bertambah. Berikut notanya.');
     }
 
+    /**
+ * Menampilkan halaman edit penerimaan.
+ * Barang yang ditampilkan hanya detail yang sudah tersimpan.
+ */
+public function edit($id)
+{
+    // Periksa apakah penerimaan tersedia
+    $rows = DB::select(
+        "SELECT * FROM penerimaan WHERE idpenerimaan = ?",
+        [$id]
+    );
+
+    if (empty($rows)) {
+        abort(404);
+    }
+
+    $penerimaan = $rows[0];
+
+    // Ambil detail penerimaan beserta nama barang
+    $details = DB::select("
+    SELECT
+        dp.iddetail_penerimaan,
+        dp.idpenerimaan,
+        dp.barang_idbarang,
+        dp.jumlah_terima,
+        dp.harga_satuan_terima,
+        dp.sub_total_terima,
+        b.nama AS nama_barang
+    FROM detail_penerimaan dp
+    JOIN barang b ON b.idbarang = dp.barang_idbarang
+    WHERE dp.idpenerimaan = ?
+    ORDER BY b.nama
+    ", [$id]);
+   
+    return view(
+        'transaksi.penerimaan.edit',
+        compact('penerimaan', 'details')
+    );
+}
+
+
+/**
+ * Memperbarui jumlah dan harga satuan detail penerimaan.
+ * Subtotal, harga barang, dan kartu stok ditangani oleh trigger MySQL.
+ */
+public function update(Request $request, $id)
+{
+    $validated = $request->validate([
+        'detail' => 'required|array|min:1',
+
+        'detail.*.jumlah_terima' =>
+            'required|integer|min:0',
+
+        'detail.*.harga_satuan_terima' =>
+            'required|integer|min:0',
+    ]);
+
+    try {
+        DB::transaction(function () use ($validated, $id) {
+
+            // Kunci header penerimaan selama proses update
+            $penerimaan = DB::table('penerimaan')
+                ->where('idpenerimaan', $id)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$penerimaan) {
+                abort(404);
+            }
+
+            // Ambil ID seluruh detail yang sudah tersimpan
+            $details = DB::table('detail_penerimaan')
+                ->where('idpenerimaan', $id)
+                ->lockForUpdate()
+                ->get();
+
+            $existingIds = $details
+                ->pluck('iddetail_penerimaan')
+                ->map(fn ($value) => (int) $value)
+                ->sort()
+                ->values()
+                ->all();
+
+            // ID yang dikirim dari form
+            $submittedIds = collect(array_keys($validated['detail']))
+                ->map(fn ($value) => (int) $value)
+                ->sort()
+                ->values()
+                ->all();
+
+            // Mencegah penambahan atau penghapusan detail melalui form
+            if ($existingIds !== $submittedIds) {
+                throw new \RuntimeException(
+                    'Detail penerimaan tidak sesuai dengan data yang tersimpan.'
+                );
+            }
+
+            // Update jumlah dan harga masing-masing detail
+            foreach ($validated['detail'] as $iddetail => $item) {
+
+                DB::table('detail_penerimaan')
+                    ->where('iddetail_penerimaan', $iddetail)
+                    ->where('idpenerimaan', $id)
+                    ->update([
+                        'jumlah_terima' => $item['jumlah_terima'],
+                        'harga_satuan_terima' =>
+                            $item['harga_satuan_terima'],
+                    ]);
+            }
+        });
+
+    } catch (QueryException $e) {
+
+        return back()
+            ->withInput()
+            ->with(
+                'error',
+                $e->errorInfo[2] ?? 'Terjadi kesalahan database.'
+            );
+
+    } catch (\RuntimeException $e) {
+
+        return back()
+            ->withInput()
+            ->with('error', $e->getMessage());
+    }
+
+    return redirect('/transaksi/penerimaan/' . $id)
+        ->with('success', 'Penerimaan berhasil diperbarui.');
+}
+
     /** Nota penerimaan */
     public function show($id)
     {
